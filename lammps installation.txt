@@ -1,0 +1,46 @@
+which cmake
+wget https://download.lammps.org/tars/lammps-stable.tar.gz
+tar xzvf lammps-stable.tar.gz
+rm lammps-stable.tar.gz
+mv lammps* lammps
+wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.1.tar.gz
+tar xzvf openmpi-5.0.1.tar.gz
+rm openmpi-5.0.1.tar.gz
+mv openmpi* openmpi
+cd /root/openmpi
+./configure --prefix=/usr/local/openmpi
+make all install
+cd /root
+wget https://www.fftw.org/fftw-3.3.10.tar.gz
+tar xzvf fftw-3.3.10.tar.gz
+rm fftw-3.3.10.tar.gz
+mv fftw-3* fftw3
+cd /root/fftw3
+./configure
+make
+make install
+
+sudo apt-get install gfortran
+sudo apt-get install gcc
+sudo apt-get install g++
+
+
+#openmp ? 
+
+cd /root/lammps
+cd src
+make package-status
+cd /root/lammps               
+mkdir build; 
+cd build 
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -D CMAKE_INSTALL_PREFIX=/usr/local/bin -D BUILD_OMP=yes -D BUILD_MPI=yes -D PKG_OPENMP=yes -D PKG_GPU=on -D GPU_API=cuda -D CUDA_MPS_SUPPORT=yes -D PKG_COLVARS=yes -D BUILD_TOOLS=yes -D PKG_USER-MEAMC=on 
+-D PKG_MANYBODY=on -D PKG_MC=on -D Python_EXECUTABLE=/usr/bin/python3 -D PKG_BODY=on -DBIN2C=/usr/local/cuda/bin/bin2c ../cmake 
+ 
+# -DCMAKE_PREFIX_PATH=/usr/local/bin/
+# -DBIN2C=/usr/local/cuda/bin/bin2c
+# -D WITH_JPEG=yes -D WITH_PNG=yes -D WITH_FFMPEG=yes -D BUILD_LAMMPS_GUI=yes
+# 
+# cmake -C ../cmake/presets/most.cmake -C ../cmake/presets/nolib.cmake -D PKG_GPU=on -D GPU_API=cuda -DBIN2C=/usr/local/cuda/bin/bin2c ../cmake
+ 
+#test  
+#mpirun -np 10 lmp -sf gpu -pk gpu 1 neigh no -in in.crack
