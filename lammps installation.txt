@@ -41,7 +41,8 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 # # -D LAMMPS_MACHINE=mpi
 # -D WITH_JPEG=yes -D WITH_PNG=yes -D WITH_FFMPEG=yes -D BUILD_LAMMPS_GUI=yes
 # cmake -C ../cmake/presets/most.cmake -C ../cmake/presets/nolib.cmake -D PKG_GPU=on -D GPU_API=cuda -DBIN2C=/usr/local/cuda/bin/bin2c ../cmake
- 
+#-D BUILD_SHARED_LIBS=yes
+
 #test 
 #export OMP_NUM_THREADS=10  
 #mpirun -np 10 --allow-run-as-root lmp -sf gpu -pk gpu 1 neigh no -in in.crack
