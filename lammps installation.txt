@@ -3,6 +3,7 @@ wget https://download.lammps.org/tars/lammps-stable.tar.gz
 tar xzvf lammps-stable.tar.gz
 rm lammps-stable.tar.gz
 mv lammps* lammps
+#sudo apt-get install mpich
 wget https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.1.tar.gz
 tar xzvf openmpi-5.0.1.tar.gz
 rm openmpi-5.0.1.tar.gz
