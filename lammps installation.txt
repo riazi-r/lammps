@@ -41,7 +41,7 @@ cd /root/lammps
 mkdir build; 
 cd build 
 
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -D CMAKE_INSTALL_PREFIX=/usr/local/lammps -D BUILD_OMP=yes -D BUILD_MPI=yes -D PKG_OPENMP=yes -D PKG_GPU=yes -D GPU_API=cuda -D CUDA_MPS_SUPPORT=yes -D PKG_COLVARS=yes -D BUILD_TOOLS=yes -D PKG_USER-MEAMC=yes -D PKG_MANYBODY=on -D PKG_MC=on -D Python_EXECUTABLE=/usr/bin/python3 -D PKG_BODY=on -D PKG_MC=on -D PKG_MOLECULE=yes -D PKG_DPD-BASIC=yes -D PKG_DPD-MESO=yes -D PKG_DPD-REACT=yes -D PKG_REACTION=yes -D PKG_REPLICA=yes -D PKG_PKG_RIGID=yes -D PKG_CLASS2=yes -D PKG_FEP=yes -D WITH_JPEG=yes -D WITH_PNG=yes -D WITH_FFMPEG=yes -D BUILD_LAMMPS_GUI=yes -D LAMMPS_EXCEPTIONS=on -DBIN2C=/usr/local/cuda/bin/bin2c ../cmake
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -D CMAKE_INSTALL_PREFIX=/usr/local/lammps2 -D BUILD_OMP=yes -D BUILD_MPI=yes -D PKG_OPENMP=yes -D PKG_GPU=yes -D GPU_API=cuda -D CUDA_MPS_SUPPORT=yes -D PKG_COLVARS=yes -D BUILD_TOOLS=yes -D PKG_USER-MEAMC=yes -D PKG_MANYBODY=on -D PKG_MC=on -D Python_EXECUTABLE=/usr/bin/python3 -D PKG_BODY=on -D PKG_MC=on -D PKG_MOLECULE=yes -D PKG_DPD-BASIC=yes -D PKG_DPD-MESO=yes -D PKG_DPD-REACT=yes -D PKG_REACTION=yes -D PKG_REPLICA=yes -D PKG_PKG_RIGID=yes -D PKG_CLASS2=yes -D PKG_FEP=yes -D WITH_JPEG=yes -D WITH_PNG=yes -D WITH_FFMPEG=yes -D BUILD_LAMMPS_GUI=yes -D LAMMPS_EXCEPTIONS=on -DBIN2C=/usr/local/cuda/bin/bin2c ../cmake
 
 # -DCMAKE_PREFIX_PATH=/usr/local/bin/
 # -DBIN2C=/usr/local/cuda/bin/bin2c
