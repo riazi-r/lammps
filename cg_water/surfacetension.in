@@ -1,0 +1,100 @@
+variable Dt equal 2.0		# timestep, in fs
+variable Nsteps equal 5e6	# 2 * 5e6 = 1e7 fs (10 ns). total number of steps in the simulation
+
+variable Ndump equal 5000	# 2 * 5e2 = 1e3 fs (1 ps). save coordinates every 1.0 ps
+
+variable Nevery equal 100	# use input values every this many timesteps
+variable Nfreq equal ${Nsteps}	# calculate averages every this many timesteps
+variable Nrepeat equal 0.5*v_Nfreq/${Nevery}	# calculate averages every this many timesteps
+
+variable Nprint equal 5000	# number of steps between printing thermo information
+
+variable Temp equal 310		# reference temperature, in K
+
+units real
+atom_style full
+boundary        p p p
+read_data old.data
+
+#region box block 0.000 40.310 0.000 40.310  0.000 80.620
+#create_box 2 box  bond/types 1 angle/types 1 &
+                extra/bond/per/atom 2 extra/angle/per/atom 1 extra/special/per/atom 2
+
+kspace_style  pppm 1.0e-4
+
+#mass 1 15.9994
+#mass 2 1.008
+
+pair_style lj/cut/coul/long 10.0 10.0
+pair_coeff 1 1 0.1553 3.166
+pair_coeff 1 2 0.0    1.0
+pair_coeff 2 2 0.0    1.0
+
+bond_style zero
+bond_coeff 1 1.0
+
+angle_style zero
+angle_coeff 1 109.47
+
+#molecule water spce.mol
+#create_atoms 0 random 33 34564 NULL mol water 25367 overlap 1.33
+
+
+timestep 2.0
+fix rigid  all shake 0.0001 10 10000 b 1 a 1
+minimize 0.0 0.0 1000 10000
+
+velocity all create 310.0 5463576 rot yes mom yes dist gaussian 
+run 0                             # temperature may not be 310K
+velocity all scale 310.0 
+fix integrate all nvt temp 310.0 310.0 100.0
+
+thermo_style custom step temp press etotal density pe ke
+thermo 1000
+
+# Stadardised output for easy loading by analysis scripts
+# LAMMPS can output dcd, xtc, and xyz formats easily. MDAnalysis can read all of these.
+#dump  1 all custom ${Ndump} ste.lammpstrj id mol type x y z ix iy iz  
+dump  2 all dcd ${Ndump} ste.dcd
+#dump  3 all xtc ${Ndump} ste.xtc
+#dump  4 all xyz ${Ndump} ste.xyz
+
+
+# One can also get pressure tensor at any finite subvolume of the simulation
+# box from atomic velocities, forces and positions without having to re-evaluate the potential.
+#dump  5 all custom ${Ndump} ste_xvf.lammpstrj id mol type x y z vx vy vz fx fy fz 
+
+thermo_style custom step temp epair emol etotal press #this is equivalent to "thermo_style one"
+thermo	${Nprint}
+
+
+# Set up pressure tensor components
+# c_thermo_press[1] is the XX component of the pressure tensor
+variable xPress equal c_thermo_press[1] 
+variable yPress equal c_thermo_press[2] 
+variable zPress equal c_thermo_press[3]
+
+# Compute surface tension
+variable A_in_m equal 1e-10 # Angstrom in meter
+variable atm_in_Pa equal 101325 # note: 1 Pa = 1 N/m^2
+variable N_in_mN equal 1000 # Newton in milliNewton
+variable convFac equal ${A_in_m}*${atm_in_Pa}*${N_in_mN}
+# lz is the box length in the z-dimention
+variable st equal 0.5*lz*(v_zPress-0.5*(v_xPress+v_yPress))*${convFac} # in mN/m
+fix st all ave/time 10 10 100 v_st file "out.surfTension2.txt" start 50000 ave running
+
+# Compute density profile
+variable Dz equal 0.5 # Angstrom
+compute CC1 all chunk/atom bin/1d z center ${Dz} units box
+fix massDens all ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} CC1 density/mass &
+    file "out.massDens.zProfile.txt"
+# Computes the symmetric per-atom stress tensor
+compute CC2 all chunk/atom bin/1d z center ${Dz} units box
+compute stpa all stress/atom NULL
+fix stress all ave/chunk ${Nevery} ${Nrepeat} ${Nfreq} CC2 c_stpa[1] c_stpa[2] c_stpa[3] &
+    c_stpa[4] c_stpa[5] c_stpa[6] file "out.stress.zProfile.txt"
+
+
+run 200000 upto
+restart    5000 spce.restart1 spce.restart2
+write_data final-st.data nocoeff nofix

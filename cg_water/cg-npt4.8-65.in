@@ -1,0 +1,182 @@
+variable Dt equal 2.0		# timestep, in fs
+
+variable Nsteps equal 1e6	# 2 * 5e6 = 1e7 fs (10 ns). total number of steps in the simulation
+
+variable Ndump equal 5000	# 2 * 5e2 = 1e3 fs (1 ps). save coordinates every 1.0 ps
+
+variable Nprint equal 5000	# number of steps between printing thermo information
+
+variable Temp equal 310		# reference temperature, in K
+
+variable seed equal 123456
+
+variable tempStart index 310  # starting temp for annealing cycle
+
+variable tempStop index 550   # stopping temp for annealing cycle
+
+variable sname string cg4.8-65-npt 
+
+variable input string SELF
+
+units real
+atom_style full
+
+boundary         p p p
+neigh_modify     delay 2 every 1
+dielectric       1
+
+#region leftbox block 0 1000 0 1000 0 1000    
+#region centerbox block 0 1000 0 1000 1000 2000
+#region rightbox block 0 1000 0 1000 2000 3000
+#region whole union 3 leftbox centerbox rightbox
+region box block 0 1000 0 1000 0 1000
+ 
+#create_box 1 whole bond/types 0 angle/types 0 &
+                extra/bond/per/atom 2 extra/angle/per/atom 1 extra/special/per/atom 2
+				
+create_box 1 box bond/types 0 angle/types 0 &
+                extra/bond/per/atom 2 extra/angle/per/atom 1 extra/special/per/atom 2				
+				
+labelmap atom 1 w
+mass          w  605321.7			
+#create_atoms  1 random 1000 12345 centerbox overlap 10.0 maxtry 500
+create_atoms  1 random 1000 12345 box overlap 10.0 maxtry 500
+									
+#read_data cg-water.data add merge				
+				
+#kspace_style  none #pppm 1.0e-4
+
+
+pair_style lj96/cut 300.0
+pair_coeff 1 1 4.8 65.7
+pair_modify   tail yes mix arithmetic
+
+#fix wall all wall/reflect zlo 1000 zhi 2000 units box # 1.0 10.0 300 pbc yes
+#fix rightwall all wall/lj126 zhi 2000 1.0 10.0 300 units box #  pbc yes
+
+#print ==========================================
+print "5000 steps sd & cg Minimization"
+#print ==========================================
+
+
+dump            1 all dcd 250 ${sname}-min.dcd
+thermo          100
+#fix             restraint solute spring/self 500.0
+min_style       sd
+minimize        1.0e-4 1.0e-4 10000 100000
+min_style       cg
+minimize        1.0e-4 1.0e-4 5000 50000
+undump          1
+write_data      ${sname}-init.data
+#now minimize the entire system
+#unfix           restraint
+#minimize        1.0e-4 1.0e-4 5000 5000
+
+
+#fix             shakeH all shake 0.0001 20 500 shakeOpts
+
+restart		1000 ${sname}.restart1 ${sname}.restart2 #${sname}_anneal.*.restart
+reset_timestep  0
+timestep        ${Dt}
+
+#print "====================================="
+print "Heating 0K -> ${tempStart}K"
+#print "====================================="
+
+fix             2 all nve
+velocity        all create ${tempStart} ${seed} dist gaussian rot yes
+thermo_style    custom step temp epair emol etotal press #multi
+thermo          ${Nprint}
+fix             3 all langevin ${tempStart} ${tempStart} 5.0 ${seed}
+run             5000
+unfix           3
+fix             3 all temp/rescale 2 ${tempStart} ${tempStart} 100 20
+run             5000
+unfix		    2
+unfix           3
+
+variable        c loop 1 #number of annealing cycles
+variable        tIncrement equal (${tempStop}-${tempStart})/10
+variable        Dt2 equal 50*${Dt}
+timestep        ${Dt2}
+#timestep	    100
+
+label           cycle
+variable	    force_constant equal 40/(2^v_c)
+fix             soluRestraint all spring/self ${force_constant}
+print "Applying ${force_constant} kcal/mol to beads" file info.dat
+
+dump		    1 all dcd 1000 ${sname}-anneal.$c.dcd #custom 10000 ${sname}_anneal.lammps id type xu yu zu vx vy vz
+dump_modify     1 pbc yes   #image yes scale yes
+
+thermo_style    custom step temp epair emol etotal press #$c #multi
+thermo		    ${Nprint}
+
+
+#print "===========================================================" file info.dat
+print "ANNEALING: Heating ${tempStart}K -> ${tempStop}K CYCLE ${c}" file info.dat
+#print "===========================================================" file info.dat
+
+variable        l loop 10
+label           annealHeat
+variable        t equal ${tempStart}+v_l*${tIncrement}
+print           "temperature: $t" #file info.dat
+fix             3 all nvt temp $t $t 100.0   #3 all npt temp $t $t 10.0 x 1.0 1.0 2000 y 1.0 1.0 2000 couple none
+run             20000
+unfix		    3
+next            l
+jump            ${input} annealHeat
+
+fix             3  all nvt temp ${tempStop} ${tempStop} 100.0 #3 all npt temp ${tempStop} ${tempStop} 10.0 x 1.0 1.0 2000 y 1.0 1.0 2000 couple none
+run             50000
+unfix           3
+
+#print "=========================================================="  file info.dat
+print "ANNEALING: Cooling ${tempStop}K -> ${tempStart}K CYCLE ${c}" file info.dat
+#print "=========================================================="  file info.dat
+
+variable        m loop 10
+label           annealCool
+variable        n equal ${tempStop}-v_m*${tIncrement}
+print           "temperature: $n" file info.dat
+fix             3 all nvt temp $n $n 100.0  #3 all npt temp $n $n 10.0 x 1.0 1.0 2000 y 1.0 1.0 2000 couple none
+run             20000
+unfix           3
+next            m
+jump            ${input} annealCool
+
+fix             3 all nvt temp ${tempStart} ${tempStart} 100.0  #3 all npt temp ${tempStart} ${tempStart} 10.0 x 1.0 1.0 2000 y 1.0 1.0 2000 couple none
+run             50000
+unfix           3
+unfix		    soluRestraint
+undump          1
+next            c
+jump            ${input} cycle
+
+#print "==============================================" file info.dat
+print "NPT dynamics at 310 C. & 1atm "                 file info.dat
+#print "==============================================" file info.dat
+
+reset_timestep  0
+#timestep	    100
+#fix             integrate all nvt temp ${tempStart} ${tempStart} 100.0  #2 all npt temp ${tempStart} ${tempStart} 100.0 x 1.0 1.0 2000.0 y 1.0 1.0 2000.0 couple xy
+fix             integrate all npt temp ${tempStart} ${tempStart} 100.0 iso 1.0 1.0 2000.0
+thermo_style    custom step temp epair emol etotal press vol #multi
+thermo          ${Nprint}
+
+# Compute isothermal compressibility
+#variable kb equal 1.380649e−23  #J/K
+#variable Press equal c_thermo_press 
+variable Vol equal vol
+variable vol2 equal v_Vol*v_Vol # in angstrom
+#print vol2=$V append cg.compressibility.txt screen no
+fix v2 all ave/time 1 1 10 v_vol2 file "cg4.8-65.v2.txt" start 500 #ave running
+
+dump            1 all custom ${Ndump} ${sname}-xvf.lammpstrj id mol type x y z vx vy vz fx fy fz
+dump_modify     1 pbc yes   #image yes scale yes
+dump		    2 all dcd  ${Ndump} ${sname}.dcd
+dump_modify     2 pbc yes   #image yes scale yes
+run             ${Nsteps} # run for 100 ns
+write_data      ${sname}-final.data #nocoeff nofix
+#unfix           2
+#unfix           shakeH
